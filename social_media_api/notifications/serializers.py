@@ -2,6 +2,9 @@ from rest_framework import serializers
 from .models import Notification
 
 class NotificationSerializer(serializers.ModelSerializer):
+    actor = serializers.ReadOnlyField(source= 'actor.username')
+
     class Meta:
         model = Notification
-        fields = ['íd', 'recipient', 'actor', 'verb', 'target','timestamp']
+        fields = ['id', 'recipient', 'actor', 'verb', 'target','created_at', 'read']
+        read_only_fields = ['id', 'created_at']

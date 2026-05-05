@@ -2,23 +2,27 @@ from rest_framework import serializers
 from .models import Post, Comment
 
 class PostSerializer(serializers.ModelSerializer):
+    author = serializers.ReadOnlyField(source='author.username')
+    total_likes = serializers.SerializerMethodField()
+
     class Meta:
         model = Post
-        fields = ['id', 'author', 'title', 'çontent', 'created_at', 'updated_at']
-        read_only_fields = ['author']
+        fields = ['id', 'author', 'title', 'content', 'created_at', 'updated_at', 'total_likes']
+        
+    def get_total_likes(self, obj):
+        return obj.likes.count() if hasattr(obj, 'likes') else 0
 
     def create(self, validated_data):
         request = self.context.get('request')
-        validated_data['author'] = request.user
-        return super().create(validated_data)
+        return Post.objects.create(author= request.user, **validated_data)
 
 class CommentSerializer(serializers.ModelSerializer):
+    author = serializers.ReadOnlyField(source='author.username')
+
     class Meta:
         model = Comment
         fields = ['id', 'post', 'author', 'content', 'created_at', 'updated_at']
-        read_only_fields = ['author']
-
+        
     def create(self, validated_data):
         request = self.context.get('request')
-        validated_data['author'] = request.user
-        return super().create(validated_data)
+        return Comment.objects.create(author=request.user, **validated_data)
