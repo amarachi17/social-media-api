@@ -28,7 +28,7 @@ class Like(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unqiue_together = ('user', 'post')
+        unique_together = ('user', 'post')
 
     def total_likes(self):
         return self.likes.count()

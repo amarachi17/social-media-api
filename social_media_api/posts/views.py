@@ -9,13 +9,14 @@ from .models import Post, Like
 from notifications.models import Notification
 from rest_framework.response import Response
 from django.contrib.contenttypes.models import ContentType
+from .permissions import IsOwnerOrReadOnly
 
 User = get_user_model()
 # Create your views here.
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all().order_by('-created_at')
     serializer_class = PostSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
     filter_backends = [filters.SearchFilter]
     search_fields = ['title', 'content']
 
@@ -25,16 +26,16 @@ class PostViewSet(viewsets.ModelViewSet):
 class CommentViewSet(viewsets.ModelViewSet):
     queryset = Comment.objects.all().order_by('-created_at')
     serializer_class = CommentSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 
-    def perform_create(self, serilaizer):
-        serilaizer.save(author=self.request.user)
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
 
 class FeedView(generics.ListAPIView):
     serializer_class = PostSerializer
     permission_classes = [IsAuthenticated]
 
-    def get_querset(self):
+    def get_queryset(self):
         user = self.request.user
         following_users = user.following.all()
         return Post.objects.filter(author__in=following_users).order_by('-created_at')
@@ -68,7 +69,7 @@ class UnlikePostView(generics.GenericAPIView):
         post = get_object_or_404(Post, pk=pk)
         user = request.user
         
-        like = Like.objects.get(user=user, post=post).first()
+        like = Like.objects.filter(user=user, post=post).first()
         if not like:
             return Response({'message': 'You have not liked this post'}, status=status.HTTP_400_BAD_REQUEST)
         like.delete()
