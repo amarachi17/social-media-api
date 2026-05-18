@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from rest_framework.authtoken.models import Token
 from .models import UserFollowing
 
 User = get_user_model()
@@ -10,21 +11,46 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'bio', 'profile_picture', 'password', 'followers_count']
+
+        fields = [
+            'id', 
+            'username', 
+            'bio', 
+            'profile_picture', 
+            'password', 
+            'followers_count'
+        ]
+            
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
         
     def get_followers_count(self, obj):
-        return obj.followers.count() if hasattr(obj, 'followers') else 0
+        return obj.followers.count() 
         
     def create(self, validated_data):
+        password = validated_data.pop('password')
+
         user = User.objects.create_user(
-            username= validated_data['username'],
-            password= validated_data['password'],
+            password=password,
+            **validated_data
         )
+        Token.objects.create(user=user)
+
         return user
 
 class UserFollowingSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserFollowing
-        fields = ['id', 'following_user', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        
+        fields = [
+            'id', 
+            'following_user', 
+            'created_at'
+        ]
+
+        read_only_fields = [
+            'id',
+            'created_at'
+        ]
         
