@@ -14,7 +14,12 @@ from .permissions import IsOwnerOrReadOnly
 User = get_user_model()
 # Create your views here.
 class PostViewSet(viewsets.ModelViewSet):
-    queryset = Post.objects.all().order_by('-created_at')
+    queryset = Post.objects.select_related(
+        'author'
+    ).prefetch_related(
+        'likes', 
+        'comments'
+    ).all()
     serializer_class = PostSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
     filter_backends = [filters.SearchFilter]
@@ -24,21 +29,47 @@ class PostViewSet(viewsets.ModelViewSet):
         serializer.save(author=self.request.user)
 
 class CommentViewSet(viewsets.ModelViewSet):
-    queryset = Comment.objects.all().order_by('-created_at')
+    queryset = Comment.objects.select_related(
+        'author',
+        'post'
+    ).all()
     serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        comment = serializer.save(
+            author = self.request.user
+        )
+
+        if comment.post.author != self.request.user:
+            Notification.objects.create(
+                recipient = comment.post.author,
+                actor = self.request.user,
+                verb = 'commented on',
+                target = comment.post
+
+            )
+
 
 class FeedView(generics.ListAPIView):
     serializer_class = PostSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        user = self.request.user
-        following_users = user.following.all()
-        return Post.objects.filter(author__in=following_users).order_by('-created_at')
+        following_users = UserFollowing.objects.filter(
+            user = self.request.user
+        ).values_list(
+            'following_user',
+            flat=True
+        )
+        return Post.objects.filter(
+            author__in=following_users
+            ).select_related(
+                'author'
+            ).prefetch_related(
+                'likes',
+                'comments'
+            )
     
 
 class LikePostView(generics.GenericAPIView):
@@ -74,5 +105,5 @@ class UnlikePostView(generics.GenericAPIView):
             return Response({'message': 'You have not liked this post'}, status=status.HTTP_400_BAD_REQUEST)
         like.delete()
         
-        return Response({'message': 'Post unliked..'}, status=status.HTTP_204_NO_CONTENT)
+        return Response({'message': 'Post unliked.'}, status=status.HTTP_204_NO_CONTENT)
         
