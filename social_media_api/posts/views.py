@@ -37,8 +37,14 @@ class CommentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 
     def perform_create(self, serializer):
+        post = get_object_or_404(
+            Post,
+            pk=self.kwargs.get('post_pk')
+        )
+
         comment = serializer.save(
-            author = self.request.user
+            author = self.request.user,
+            post=post
         )
 
         if comment.post.author != self.request.user:
@@ -49,6 +55,16 @@ class CommentViewSet(viewsets.ModelViewSet):
                 target = comment.post
 
             )
+    def get_queryset(self):
+        post_pk = self.kwargs.get('post_pk')
+
+        return Comment.objects.filter(
+            post_id = post_pk
+        ).select_related(
+            'author',
+            'post'
+        )
+    
 
 
 class FeedView(generics.ListAPIView):
