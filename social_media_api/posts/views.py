@@ -19,7 +19,7 @@ class PostViewSet(viewsets.ModelViewSet):
     ).prefetch_related(
         'likes', 
         'comments'
-    ).all()
+    ).order_by('-created_at')
     serializer_class = PostSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
     filter_backends = [filters.SearchFilter]
@@ -32,7 +32,7 @@ class CommentViewSet(viewsets.ModelViewSet):
     queryset = Comment.objects.select_related(
         'author',
         'post'
-    ).all()
+    ).order_by('-created_at')
     serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 
