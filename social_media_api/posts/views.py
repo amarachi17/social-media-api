@@ -10,6 +10,10 @@ from notifications.models import Notification
 from rest_framework.response import Response
 from django.contrib.contenttypes.models import ContentType
 from .permissions import IsOwnerOrReadOnly
+from accounts.models import UserFollowing
+from rest_framework import filters
+from django_filters.rest_framework import DjangoFilterBackend
+from .pagination import PostPagination
 
 User = get_user_model()
 # Create your views here.
@@ -21,9 +25,30 @@ class PostViewSet(viewsets.ModelViewSet):
         'comments'
     ).order_by('-created_at')
     serializer_class = PostSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
-    filter_backends = [filters.SearchFilter]
+
+    pagination_class = PostPagination
+
+    permission_classes = [
+        permissions.IsAuthenticatedOrReadOnly,
+        IsOwnerOrReadOnly
+    ]
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter
+    ]
+
+    filterset_fields = ['author']
+
     search_fields = ['title', 'content']
+
+    ordering_fields = [
+        'created_at',
+        'updated_at',
+        'title'
+    ]
+    ordering = ['-created_at']
+    
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
@@ -52,8 +77,8 @@ class CommentViewSet(viewsets.ModelViewSet):
                 recipient = comment.post.author,
                 actor = self.request.user,
                 verb = 'commented on',
-                target = comment.post
-
+                target_content_type = ContentType.objects.get_for_model(comment.post),
+                target_object_id = comment.post.id
             )
     def get_queryset(self):
         post_pk = self.kwargs.get('post_pk')
